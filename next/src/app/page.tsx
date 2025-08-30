@@ -315,7 +315,6 @@ export default function Home() {
                         </td>
                         <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">
                           {row.originalSize !== row.size &&
-                          compressImages &&
                           row.status === "Uploaded" ? (
                             <div>
                               <div className="text-xs text-gray-500 line-through">
