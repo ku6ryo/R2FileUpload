@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 // Format bytes as TB, GB, MB, KB, or B
 function formatBytes(bytes: number): string {
@@ -16,11 +16,18 @@ export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [fileTable, setFileTable] = useState<any[]>([]); // { name, size, type, status, url, ... }
 
-  // Add new files to the table and trigger upload
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files ? Array.from(e.target.files) : [];
+  // Drag and drop & file select logic
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent<HTMLDivElement>) => {
+    let selectedFiles: File[] = [];
+    if ('dataTransfer' in e) {
+      selectedFiles = Array.from(e.dataTransfer.files);
+    } else {
+      selectedFiles = e.target.files ? Array.from(e.target.files) : [];
+    }
     if (!selectedFiles.length) return;
-    // Add new files to the table with status 'Being uploaded'
     setFileTable(prev => [
       ...prev,
       ...selectedFiles.map(f => ({
@@ -33,6 +40,30 @@ export default function Home() {
     ]);
     setFiles(selectedFiles);
     setTimeout(() => handleUpload(selectedFiles), 0);
+    // Reset input value so selecting the same files again will trigger onChange
+    if ('target' in e && e.target instanceof HTMLInputElement) {
+      e.target.value = '';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  };
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    handleFileChange(e);
+  };
+  const handleAreaClick = () => {
+    fileInputRef.current?.click();
   };
 
   // Upload files and update their status in the table
@@ -90,38 +121,35 @@ export default function Home() {
       <main className="max-w-2xl mx-auto">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">
-            File Upload
+            File Upload to Cloudflare R2
           </h1>
 
-          <div className="bg-gray-100 dark:bg-gray-700 rounded-md p-4">
-            <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-              <strong>Max File Size:</strong> 10MB
-            </p>
-          </div>
 
           <div className="space-y-6">
-            {/* File Selection */}
+            {/* Drag and Drop File Selection */}
             <div>
-              <label
-                htmlFor="file-upload"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              <div
+                onClick={handleAreaClick}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer transition-colors h-32 mb-2 ${dragActive ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:border-blue-400'}`}
+                tabIndex={0}
+                role="button"
+                aria-label="ファイルをドラッグ＆ドロップ、またはクリックして選択"
               >
-                Choose files to upload
-              </label>
-              <div className="relative">
+                <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-8m0 0l-3 3m3-3l3 3M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M4 16V8a2 2 0 012-2h3m10 10V8a2 2 0 00-2-2h-3" />
+                </svg>
+                <span className="text-sm text-gray-600 dark:text-gray-300 select-none">ファイルをドラッグ＆ドロップ、またはクリックして選択</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 mt-1">Max 10MB</span>
                 <input
+                  ref={fileInputRef}
                   id="file-upload"
                   type="file"
                   multiple
                   onChange={handleFileChange}
-                  className="block w-full text-sm text-gray-500 dark:text-gray-400
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-md file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-blue-50 file:text-blue-700
-                    hover:file:bg-blue-100
-                    dark:file:bg-blue-900 dark:file:text-blue-300
-                    dark:hover:file:bg-blue-800"
+                  className="hidden"
                 />
               </div>
             </div>
