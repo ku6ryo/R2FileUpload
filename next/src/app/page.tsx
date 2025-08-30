@@ -4,8 +4,22 @@ import { useState, useRef } from "react";
 
 
 // ErrorPopupButton component
+import { useEffect } from "react";
 function ErrorPopupButton({ message }: { message?: string }) {
   const [open, setOpen] = useState(false);
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
   return (
     <span className="inline-flex items-center gap-1 relative">
       <span className="text-red-600 dark:text-red-400">error</span>
@@ -21,7 +35,7 @@ function ErrorPopupButton({ message }: { message?: string }) {
         </svg>
       </button>
       {open && (
-        <div className="absolute z-10 left-1/2 -translate-x-1/2 mt-2 w-64 bg-white dark:bg-gray-800 border border-red-300 dark:border-red-700 rounded shadow-lg p-3 text-xs text-red-700 dark:text-red-300">
+        <div ref={popupRef} className="absolute z-10 left-1/2 -translate-x-1/2 mt-2 w-64 bg-white dark:bg-gray-800 border border-red-300 dark:border-red-700 rounded shadow-lg p-3 text-xs text-red-700 dark:text-red-300">
           <div className="flex justify-between items-center mb-1">
             <span className="font-bold">エラー内容</span>
             <button className="text-xs text-gray-400 hover:text-gray-700" onClick={() => setOpen(false)} title="閉じる">×</button>
