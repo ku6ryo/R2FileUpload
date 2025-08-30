@@ -2,6 +2,15 @@
 
 import { useState } from "react";
 
+// Format bytes as TB, GB, MB, KB, or B
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 export default function Home() {
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -89,7 +98,7 @@ export default function Home() {
                   {files.map((file, idx) => (
                     <li key={idx} className="mb-1">
                       <span className="text-sm text-gray-600 dark:text-gray-300">
-                        {file.name} ({(file.size / 1024).toFixed(2)} KB, {file.type})
+                        {file.name} ({formatBytes(file.size)}, {file.type})
                       </span>
                     </li>
                   ))}
@@ -134,7 +143,7 @@ export default function Home() {
                       <div className="text-sm text-green-700 dark:text-green-300 space-y-1">
                         <p>Original Name: {result.fileInfo.originalName}</p>
                         <p>Stored As: {result.fileInfo.filename}</p>
-                        <p>Size: {result.fileInfo.size} bytes</p>
+                        <p>Size: {formatBytes(result.fileInfo.size)}</p>
                         <p>Type: {result.fileInfo.type}</p>
                         <p>
                           Uploaded At: {" "}
