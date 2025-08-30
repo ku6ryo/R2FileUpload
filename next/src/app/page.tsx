@@ -6,9 +6,6 @@ export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [r2Status, setR2Status] = useState<any>(null);
-  const [r2Files, setR2Files] = useState<any>(null);
-  const [loadingR2, setLoadingR2] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -36,44 +33,11 @@ export default function Home() {
 
       const data = await response.json();
       setResult(data);
-
-      // Refresh file list if upload was successful
-      if (data.success && data.fileInfo?.r2Configured) {
-        await checkR2Files();
-      }
     } catch (error) {
       console.error("Upload error:", error);
       setResult({ error: "Upload failed" });
     } finally {
       setUploading(false);
-    }
-  };
-
-  const checkR2Status = async () => {
-    setLoadingR2(true);
-    try {
-      const response = await fetch("/api/r2?action=list-buckets");
-      const data = await response.json();
-      setR2Status(data);
-    } catch (error) {
-      console.error("R2 status check error:", error);
-      setR2Status({ error: "Failed to check R2 status" });
-    } finally {
-      setLoadingR2(false);
-    }
-  };
-
-  const checkR2Files = async () => {
-    setLoadingR2(true);
-    try {
-      const response = await fetch("/api/r2?action=list-objects");
-      const data = await response.json();
-      setR2Files(data);
-    } catch (error) {
-      console.error("R2 files check error:", error);
-      setR2Files({ error: "Failed to list files" });
-    } finally {
-      setLoadingR2(false);
     }
   };
 
@@ -237,156 +201,6 @@ export default function Home() {
               <p className="text-sm text-gray-700 dark:text-gray-300">
                 <strong>Custom Domain:</strong> test250826.kaminari-cloud.com
               </p>
-            </div>
-          </div>
-
-          {/* R2 Configuration */}
-          <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-600">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Cloudflare R2 Status
-            </h2>
-
-            <div className="space-y-4">
-              {/* R2 Status Check */}
-              <div className="flex gap-4">
-                <button
-                  onClick={checkR2Status}
-                  disabled={loadingR2}
-                  className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 
-                    text-white font-semibold py-2 px-4 rounded-md
-                    transition-colors duration-200 disabled:cursor-not-allowed"
-                >
-                  {loadingR2 ? "Checking..." : "Check R2 Connection"}
-                </button>
-
-                <button
-                  onClick={checkR2Files}
-                  disabled={loadingR2}
-                  className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 
-                    text-white font-semibold py-2 px-4 rounded-md
-                    transition-colors duration-200 disabled:cursor-not-allowed"
-                >
-                  {loadingR2 ? "Loading..." : "List Files"}
-                </button>
-              </div>
-
-              {/* R2 Status Display */}
-              {r2Status && (
-                <div
-                  className={`rounded-md p-4 ${
-                    r2Status.success
-                      ? "bg-green-50 border border-green-200 dark:bg-green-900 dark:border-green-700"
-                      : "bg-red-50 border border-red-200 dark:bg-red-900 dark:border-red-700"
-                  }`}
-                >
-                  <h3
-                    className={`text-sm font-medium mb-2 ${
-                      r2Status.success
-                        ? "text-green-800 dark:text-green-200"
-                        : "text-red-800 dark:text-red-200"
-                    }`}
-                  >
-                    {r2Status.success
-                      ? "R2 Connection Successful!"
-                      : "R2 Connection Failed"}
-                  </h3>
-
-                  {r2Status.success && r2Status.buckets && (
-                    <div className="text-sm text-green-700 dark:text-green-300">
-                      <p className="font-semibold">Available Buckets:</p>
-                      {r2Status.buckets.map((bucket: any, index: number) => (
-                        <p key={index}>
-                          • {bucket.Name} (Created:{" "}
-                          {new Date(bucket.CreationDate).toLocaleDateString()})
-                        </p>
-                      ))}
-                      {r2Status.customDomainConfigured ? (
-                        <p className="mt-2 font-semibold text-green-800 dark:text-green-200">
-                          ✅ Custom Domain: {r2Status.customDomain}
-                        </p>
-                      ) : (
-                        <p className="mt-2 font-semibold text-yellow-600 dark:text-yellow-400">
-                          ⚠️ Custom Domain not configured - Files will not be
-                          publicly accessible
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {r2Status.error && (
-                    <div className="text-sm text-red-700 dark:text-red-300">
-                      <p>{r2Status.error}</p>
-                      {r2Status.requiredEnvVars && (
-                        <div className="mt-2">
-                          <p className="font-semibold">
-                            Required Environment Variables:
-                          </p>
-                          {r2Status.requiredEnvVars.map(
-                            (envVar: string, index: number) => (
-                              <p key={index}>• {envVar}</p>
-                            ),
-                          )}
-                          <p className="mt-2 text-xs">
-                            Copy .env.local.example to .env.local and fill in
-                            your R2 credentials.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* R2 Files Display */}
-              {r2Files && (
-                <div
-                  className={`rounded-md p-4 ${
-                    r2Files.success
-                      ? "bg-blue-50 border border-blue-200 dark:bg-blue-900 dark:border-blue-700"
-                      : "bg-red-50 border border-red-200 dark:bg-red-900 dark:border-red-700"
-                  }`}
-                >
-                  <h3
-                    className={`text-sm font-medium mb-2 ${
-                      r2Files.success
-                        ? "text-blue-800 dark:text-blue-200"
-                        : "text-red-800 dark:text-red-200"
-                    }`}
-                  >
-                    {r2Files.success
-                      ? `Files in ${r2Files.bucket} (${r2Files.keyCount} files)`
-                      : "Failed to List Files"}
-                  </h3>
-
-                  {r2Files.success && r2Files.objects && (
-                    <div className="text-sm text-blue-700 dark:text-blue-300 max-h-40 overflow-y-auto">
-                      {r2Files.objects.length === 0 ? (
-                        <p>No files found in bucket.</p>
-                      ) : (
-                        r2Files.objects.map((obj: any, index: number) => (
-                          <div
-                            key={index}
-                            className="py-1 border-b border-blue-200 dark:border-blue-700 last:border-b-0"
-                          >
-                            <p className="font-medium">{obj.Key}</p>
-                            <p className="text-xs">
-                              Size: {(obj.Size / 1024).toFixed(2)} KB |
-                              Modified:{" "}
-                              {new Date(obj.LastModified).toLocaleString()}
-                            </p>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-
-                  {r2Files.error && (
-                    <p className="text-sm text-red-700 dark:text-red-300">
-                      {r2Files.error}
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </div>
