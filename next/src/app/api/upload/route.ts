@@ -11,18 +11,6 @@ import {
 // Maximum file size (5MB)
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-// Allowed file types
-const ALLOWED_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "application/pdf",
-  "text/plain",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-];
-
 export async function POST(request: NextRequest) {
   // Check for compression flag in query (?compress=true)
   const { searchParams } = new URL(request.url);
@@ -43,10 +31,6 @@ export async function POST(request: NextRequest) {
         // Validate file size
         if (file.size > MAX_FILE_SIZE) {
           return { error: `File '${file.name}' size exceeds 5MB limit` };
-        }
-        // Validate file type
-        if (!ALLOWED_TYPES.includes(file.type)) {
-          return { error: `File '${file.name}' type not allowed` };
         }
         // Generate unique filename
         const timestamp = Date.now();
