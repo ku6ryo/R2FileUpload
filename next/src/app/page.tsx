@@ -1,6 +1,19 @@
 "use client";
-
 import { useState, useRef } from "react";
+
+// Simple toast component
+function Toast({ message, onClose }: { message: string, onClose: () => void }) {
+  // Auto close after 2 seconds
+  useEffect(() => {
+    const t = setTimeout(onClose, 2000);
+    return () => clearTimeout(t);
+  }, [onClose]);
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white px-4 py-2 rounded shadow-lg text-sm animate-fade-in">
+      {message}
+    </div>
+  );
+}
 
 
 // ErrorPopupButton component
@@ -64,6 +77,7 @@ export default function Home() {
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [fileTable, setFileTable] = useState<any[]>([]); // { name, size, type, status, url, ... }
+  const [toast, setToast] = useState<string | null>(null);
 
   // Drag and drop & file select logic
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -245,11 +259,14 @@ export default function Home() {
                                 type="button"
                                 title="Copy URL"
                                 className="ml-1 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                                onClick={() => navigator.clipboard.writeText(row.url)}
+                                onClick={() => {
+                                  navigator.clipboard.writeText(row.url);
+                                  setToast('URL copied!');
+                                }}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20" className="w-4 h-4 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400" aria-hidden="true">
                                   <rect x="7" y="7" width="9" height="9" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-                                  <rect x="4" y="4" width="9" height="9" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                                  <rect x="4" y="4" width="9" height="9" rx="2" stroke="currentColor" strokeWidth="1.5" />
                                 </svg>
                               </button>
                             </span>
@@ -265,6 +282,8 @@ export default function Home() {
             )}
           </div>
         </div>
+        {/* Toast notification */}
+        {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       </main>
     </div>
   );
