@@ -158,7 +158,20 @@ export default function Home() {
                         </td>
                         <td className="px-4 py-2 text-sm">
                           {row.url ? (
-                            <a href={row.url} target="_blank" rel="noopener noreferrer" className="underline text-blue-600 dark:text-blue-400">Link</a>
+                            <span className="inline-flex items-center gap-2">
+                              <a href={row.url} target="_blank" rel="noopener noreferrer" className="underline text-blue-600 dark:text-blue-400">Link</a>
+                              <button
+                                type="button"
+                                title="Copy URL"
+                                className="ml-1 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                                onClick={() => navigator.clipboard.writeText(row.url)}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20" className="w-4 h-4 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400" aria-hidden="true">
+                                  <rect x="7" y="7" width="9" height="9" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                                  <rect x="4" y="4" width="9" height="9" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                                </svg>
+                              </button>
+                            </span>
                           ) : (
                             <span className="text-gray-400">-</span>
                           )}
