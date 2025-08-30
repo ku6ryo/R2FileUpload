@@ -145,8 +145,16 @@ export default function Home() {
                         <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">{row.name}</td>
                         <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{formatBytes(row.size)}</td>
                         <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{row.type}</td>
-                        <td className="px-4 py-2 text-sm font-semibold {row.status === 'Uploaded' ? 'text-green-600 dark:text-green-400' : row.status === 'Being uploaded' ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}">
-                          {row.status}
+                        <td className={`px-4 py-2 text-sm font-semibold ${row.status === 'Uploaded' ? 'text-green-600 dark:text-green-400' : row.status === 'Being uploaded' ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {row.status === 'Being uploaded' ? (
+                            <span className="inline-flex items-center gap-2">
+                              <svg className="animate-spin h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                              </svg>
+                              Uploading
+                            </span>
+                          ) : row.status}
                         </td>
                         <td className="px-4 py-2 text-sm">
                           {row.url ? (
