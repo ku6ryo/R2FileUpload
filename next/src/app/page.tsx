@@ -14,24 +14,35 @@ function formatBytes(bytes: number): string {
 export default function Home() {
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [results, setResults] = useState<any[]>([]);
+  const [fileTable, setFileTable] = useState<any[]>([]); // { name, size, type, status, url, ... }
 
+  // Add new files to the table and trigger upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files ? Array.from(e.target.files) : [];
+    if (!selectedFiles.length) return;
+    // Add new files to the table with status 'Being uploaded'
+    setFileTable(prev => [
+      ...prev,
+      ...selectedFiles.map(f => ({
+        name: f.name,
+        size: f.size,
+        type: f.type,
+        status: 'Being uploaded',
+        file: f,
+      }))
+    ]);
     setFiles(selectedFiles);
-    setResults([]);
+    setTimeout(() => handleUpload(selectedFiles), 0);
   };
 
-  const handleUpload = async () => {
-    if (!files.length) {
-      alert("Please select at least one file");
-      return;
-    }
+  // Upload files and update their status in the table
+  const handleUpload = async (uploadFiles?: File[]) => {
+    const filesToUpload = uploadFiles || files;
+    if (!filesToUpload.length) return;
     setUploading(true);
-    setResults([]);
     try {
       const formData = new FormData();
-      files.forEach((file) => {
+      filesToUpload.forEach((file) => {
         formData.append("file", file);
       });
       const response = await fetch("/api/upload", {
@@ -40,14 +51,35 @@ export default function Home() {
       });
       const data = await response.json();
       if (data.results) {
-        setResults(data.results);
-        setFiles([]); // Clear selected files after successful upload
-      } else {
-        setResults([{ error: data.error || "Unknown error" }]);
+        setFileTable(prev => {
+          let updated = [...prev];
+          filesToUpload.forEach((file, idx) => {
+            const i = updated.findIndex(row => row.name === file.name && row.size === file.size && row.status === 'Being uploaded');
+            if (i !== -1) {
+              const result = data.results[idx];
+              if (result && result.success && result.fileInfo) {
+                updated[i] = {
+                  ...updated[i],
+                  status: 'Uploaded',
+                  url: result.fileInfo.url || '',
+                  uploadedAt: result.fileInfo.uploadedAt,
+                  r2Configured: result.fileInfo.r2Configured,
+                  uploadMetadata: result.fileInfo.uploadMetadata,
+                };
+              } else {
+                updated[i] = {
+                  ...updated[i],
+                  status: result && result.error ? result.error : 'Failed',
+                };
+              }
+            }
+          });
+          return updated;
+        });
+        setFiles([]); // Clear selected files after upload
       }
     } catch (error) {
-      console.error("Upload error:", error);
-      setResults([{ error: "Upload failed" }]);
+      setFileTable(prev => prev.map(row => row.status === 'Being uploaded' ? { ...row, status: 'Failed' } : row));
     } finally {
       setUploading(false);
     }
@@ -58,8 +90,14 @@ export default function Home() {
       <main className="max-w-2xl mx-auto">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">
-            File Upload Demo
+            File Upload
           </h1>
+
+          <div className="bg-gray-100 dark:bg-gray-700 rounded-md p-4">
+            <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+              <strong>Max File Size:</strong> 10MB
+            </p>
+          </div>
 
           <div className="space-y-6">
             {/* File Selection */}
@@ -88,130 +126,41 @@ export default function Home() {
               </div>
             </div>
 
-            {/* File Info */}
-            {files.length > 0 && (
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-md p-4">
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                  Selected Files:
-                </h3>
-                <ul className="list-disc pl-5">
-                  {files.map((file, idx) => (
-                    <li key={idx} className="mb-1">
-                      <span className="text-sm text-gray-600 dark:text-gray-300">
-                        {file.name} ({formatBytes(file.size)}, {file.type})
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+            {/* File Table Display */}
+            {fileTable.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-100 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">File Name</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">Size</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">Type</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">URL</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {fileTable.map((row, idx) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">{row.name}</td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{formatBytes(row.size)}</td>
+                        <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{row.type}</td>
+                        <td className="px-4 py-2 text-sm font-semibold {row.status === 'Uploaded' ? 'text-green-600 dark:text-green-400' : row.status === 'Being uploaded' ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}">
+                          {row.status}
+                        </td>
+                        <td className="px-4 py-2 text-sm">
+                          {row.url ? (
+                            <a href={row.url} target="_blank" rel="noopener noreferrer" className="underline text-blue-600 dark:text-blue-400">Link</a>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
-
-            {/* Upload Button */}
-            <button
-              onClick={handleUpload}
-              disabled={!files.length || uploading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 
-                text-white font-semibold py-3 px-4 rounded-md
-                transition-colors duration-200
-                disabled:cursor-not-allowed"
-            >
-              {uploading ? "Uploading..." : `Upload ${files.length > 1 ? 'Files' : 'File'}`}
-            </button>
-
-            {/* Result Display */}
-            {results.length > 0 && (
-              <div className="space-y-4">
-                {results.map((result, idx) => (
-                  <div
-                    key={idx}
-                    className={`rounded-md p-4 ${
-                      result.success
-                        ? "bg-green-50 border border-green-200 dark:bg-green-900 dark:border-green-700"
-                        : "bg-red-50 border border-red-200 dark:bg-red-900 dark:border-red-700"
-                    }`}
-                  >
-                    <h3
-                      className={`text-sm font-medium mb-2 ${
-                        result.success
-                          ? "text-green-800 dark:text-green-200"
-                          : "text-red-800 dark:text-red-200"
-                      }`}
-                    >
-                      {result.success ? `Upload Successful!` : `Upload Failed`}
-                    </h3>
-                    {result.success && result.fileInfo && (
-                      <div className="text-sm text-green-700 dark:text-green-300 space-y-1">
-                        <p>Original Name: {result.fileInfo.originalName}</p>
-                        <p>Stored As: {result.fileInfo.filename}</p>
-                        <p>Size: {formatBytes(result.fileInfo.size)}</p>
-                        <p>Type: {result.fileInfo.type}</p>
-                        <p>
-                          Uploaded At: {" "}
-                          {new Date(result.fileInfo.uploadedAt).toLocaleString()}
-                        </p>
-                        {result.fileInfo.url && (
-                          <p>
-                            URL: {" "}
-                            <a
-                              href={result.fileInfo.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="underline text-blue-600 dark:text-blue-400"
-                            >
-                              {result.fileInfo.url}
-                            </a>
-                          </p>
-                        )}
-                        {!result.fileInfo.url && result.fileInfo.r2Configured && (
-                          <p className="text-yellow-600 dark:text-yellow-400">
-                            ⚠️ No public URL available - Custom domain not configured
-                          </p>
-                        )}
-                        {result.fileInfo.uploadMetadata && (
-                          <div className="mt-2">
-                            <p className="font-semibold">Upload Metadata:</p>
-                            <p>ETag: {result.fileInfo.uploadMetadata.etag}</p>
-                            {result.fileInfo.uploadMetadata.versionId && (
-                              <p>
-                                Version ID: {" "}
-                                {result.fileInfo.uploadMetadata.versionId}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {result.error && (
-                      <p className="text-sm text-red-700 dark:text-red-300">
-                        {result.error}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* API Info */}
-          <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-600">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              API Information
-            </h2>
-            <div className="bg-gray-100 dark:bg-gray-700 rounded-md p-4">
-              <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                <strong>Endpoint:</strong> POST /api/upload
-              </p>
-              <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                <strong>Max File Size:</strong> 10MB
-              </p>
-              <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                <strong>Allowed Types:</strong> Images (JPEG, PNG, GIF, WebP),
-                PDF, Text, Word documents
-              </p>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                <strong>Custom Domain:</strong> test250826.kaminari-cloud.com
-              </p>
-            </div>
           </div>
         </div>
       </main>
