@@ -7,8 +7,8 @@ import {
   generatePublicUrl,
 } from "@/lib/r2";
 
-// Maximum file size (10MB)
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+// Maximum file size (5MB)
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 // Allowed file types
 const ALLOWED_TYPES = [
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     const results = await Promise.all(files.map(async (file) => {
       // Validate file size
       if (file.size > MAX_FILE_SIZE) {
-        return { error: `File '${file.name}' size exceeds 10MB limit` };
+        return { error: `File '${file.name}' size exceeds 5MB limit` };
       }
       // Validate file type
       if (!ALLOWED_TYPES.includes(file.type)) {

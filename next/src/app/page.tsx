@@ -2,6 +2,41 @@
 
 import { useState, useRef } from "react";
 
+
+// ErrorPopupButton component
+function ErrorPopupButton({ message }: { message?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="inline-flex items-center gap-1 relative">
+      <span className="text-red-600 dark:text-red-400">error</span>
+      <button
+        type="button"
+        className="p-0.5 rounded-full hover:bg-red-100 dark:hover:bg-red-900"
+        onClick={() => setOpen((v) => !v)}
+        title="エラー内容を表示"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20" className="w-4 h-4 text-red-500" aria-hidden="true">
+          <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.5" fill="#fff" />
+          <text x="10" y="15" textAnchor="middle" fontSize="12" fill="currentColor">i</text>
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute z-10 left-1/2 -translate-x-1/2 mt-2 w-64 bg-white dark:bg-gray-800 border border-red-300 dark:border-red-700 rounded shadow-lg p-3 text-xs text-red-700 dark:text-red-300">
+          <div className="flex justify-between items-center mb-1">
+            <span className="font-bold">エラー内容</span>
+            <button className="text-xs text-gray-400 hover:text-gray-700" onClick={() => setOpen(false)} title="閉じる">×</button>
+          </div>
+          <div>{message || 'Unknown error'}</div>
+        </div>
+      )}
+    </span>
+  );
+}
+
+
+// Maximum file size (5MB)
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
 // Format bytes as TB, GB, MB, KB, or B
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -96,11 +131,13 @@ export default function Home() {
                   uploadedAt: result.fileInfo.uploadedAt,
                   r2Configured: result.fileInfo.r2Configured,
                   uploadMetadata: result.fileInfo.uploadMetadata,
+                  errorMessage: undefined,
                 };
               } else {
                 updated[i] = {
                   ...updated[i],
-                  status: result && result.error ? result.error : 'Failed',
+                  status: 'error',
+                  errorMessage: result && result.error ? result.error : 'Upload failed',
                 };
               }
             }
@@ -110,7 +147,7 @@ export default function Home() {
         setFiles([]); // Clear selected files after upload
       }
     } catch (error) {
-      setFileTable(prev => prev.map(row => row.status === 'Being uploaded' ? { ...row, status: 'Failed' } : row));
+  setFileTable(prev => prev.map(row => row.status === 'Being uploaded' ? { ...row, status: 'error', errorMessage: 'Upload failed' } : row));
     } finally {
       setUploading(false);
     }
@@ -118,7 +155,7 @@ export default function Home() {
 
   return (
     <div className="font-sans min-h-screen p-8 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <main className="max-w-2xl mx-auto">
+      <main className="max-w-[1200px] mx-auto">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">
             File Upload to Cloudflare R2
@@ -142,7 +179,7 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-8m0 0l-3 3m3-3l3 3M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M4 16V8a2 2 0 012-2h3m10 10V8a2 2 0 00-2-2h-3" />
                 </svg>
                 <span className="text-sm text-gray-600 dark:text-gray-300 select-none">ファイルをドラッグ＆ドロップ、またはクリックして選択</span>
-                <span className="text-xs text-gray-400 dark:text-gray-500 mt-1">Max 10MB</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 mt-1">Max {formatBytes(MAX_FILE_SIZE)}</span>
                 <input
                   ref={fileInputRef}
                   id="file-upload"
@@ -173,7 +210,7 @@ export default function Home() {
                         <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">{row.name}</td>
                         <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{formatBytes(row.size)}</td>
                         <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{row.type}</td>
-                        <td className={`px-4 py-2 text-sm font-semibold ${row.status === 'Uploaded' ? 'text-green-600 dark:text-green-400' : row.status === 'Being uploaded' ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
+                        <td className={`px-4 py-2 text-sm font-semibold ${row.status === 'Uploaded' ? 'text-green-600 dark:text-green-400' : row.status === 'Being uploaded' ? 'text-blue-600 dark:text-blue-400' : row.status === 'error' ? 'text-red-600 dark:text-red-400' : ''}`}>
                           {row.status === 'Being uploaded' ? (
                             <span className="inline-flex items-center gap-2">
                               <svg className="animate-spin h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -182,6 +219,8 @@ export default function Home() {
                               </svg>
                               Uploading
                             </span>
+                          ) : row.status === 'error' ? (
+                            <ErrorPopupButton message={row.errorMessage} />
                           ) : row.status}
                         </td>
                         <td className="px-4 py-2 text-sm">
