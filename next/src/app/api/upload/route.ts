@@ -25,88 +25,66 @@ const ALLOWED_TYPES = [
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const file = formData.get("file") as File;
+    // Get all files (support multiple)
+    const files = formData.getAll("file").filter(f => f instanceof File) as File[];
 
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    if (!files.length) {
+      return NextResponse.json({ error: "No files provided" }, { status: 400 });
     }
 
-    // Validate file size
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: "File size exceeds 10MB limit" },
-        { status: 400 },
-      );
-    }
-
-    // Validate file type
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        { error: "File type not allowed" },
-        { status: 400 },
-      );
-    }
-
-    // Generate unique filename
-    const timestamp = Date.now();
-    const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const filename = `${timestamp}_${originalName}`;
-
-    // Convert file to buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    let uploadResult = null;
-    let fileUrl = null;
-
-    // Upload to R2 if configured
-    if (isR2Configured()) {
-      try {
-        const uploadParams = {
-          Bucket: R2_CONFIG.BUCKET_NAME,
-          Key: filename,
-          Body: buffer,
-          ContentType: file.type,
-          ContentLength: file.size,
-        };
-
-        const command = new PutObjectCommand(uploadParams);
-        uploadResult = await r2Client.send(command);
-
-        // Generate the public URL using custom domain
-        fileUrl = generatePublicUrl(filename);
-
-        console.log("File uploaded to R2 successfully:", uploadResult);
-      } catch (r2Error) {
-        console.error("R2 upload error:", r2Error);
-        return NextResponse.json(
-          { error: "Failed to upload file to R2" },
-          { status: 500 },
-        );
+    const results = await Promise.all(files.map(async (file) => {
+      // Validate file size
+      if (file.size > MAX_FILE_SIZE) {
+        return { error: `File '${file.name}' size exceeds 10MB limit` };
       }
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: isR2Configured()
-        ? "File uploaded to R2 successfully"
-        : "File processed successfully (R2 not configured)",
-      fileInfo: {
-        originalName: file.name,
-        filename: filename,
-        size: file.size,
-        type: file.type,
-        uploadedAt: new Date().toISOString(),
-        url: fileUrl,
-        r2Configured: isR2Configured(),
-        uploadMetadata: uploadResult
-          ? {
-              etag: uploadResult.ETag,
-              versionId: uploadResult.VersionId,
-            }
-          : null,
-      },
-    });
+      // Validate file type
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        return { error: `File '${file.name}' type not allowed` };
+      }
+      // Generate unique filename
+      const timestamp = Date.now();
+      const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const filename = `${timestamp}_${originalName}`;
+      // Convert file to buffer
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      let uploadResult = null;
+      let fileUrl = null;
+      if (isR2Configured()) {
+        try {
+          const uploadParams = {
+            Bucket: R2_CONFIG.BUCKET_NAME,
+            Key: filename,
+            Body: buffer,
+            ContentType: file.type,
+            ContentLength: file.size,
+          };
+          const command = new PutObjectCommand(uploadParams);
+          uploadResult = await r2Client.send(command);
+          fileUrl = generatePublicUrl(filename);
+        } catch (r2Error) {
+          return { error: `Failed to upload '${file.name}' to R2` };
+        }
+      }
+      return {
+        success: true,
+        fileInfo: {
+          originalName: file.name,
+          filename: filename,
+          size: file.size,
+          type: file.type,
+          uploadedAt: new Date().toISOString(),
+          url: fileUrl,
+          uploadMetadata: uploadResult
+            ? {
+                etag: uploadResult.ETag,
+                versionId: uploadResult.VersionId,
+              }
+            : null,
+        },
+      };
+    }));
+    return NextResponse.json({ results });
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json(
